@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecureFin Ops — Collections Escalations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1C2B4A; --navy-deep:#131E33; --brass:#C68A3E;
+    --paper:#F5F2EA; --ink:#22201B; --ink-soft:#5B584F;
+    --forest:#3C6E4F; --clay:#A8412F; --line:rgba(28,43,74,0.12);
+    --amber:#B9862F;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans',sans-serif;}
+  .wrap{max-width:980px; margin:0 auto; padding:36px 28px 60px;}
+
+  header{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:8px; flex-wrap:wrap; gap:12px;}
+  h1{font-family:'IBM Plex Serif',serif; font-size:24px; font-weight:600; margin:0;}
+  .sub{font-size:13.5px; color:var(--ink-soft); margin:4px 0 0;}
+  .actions{display:flex; gap:8px; align-items:center;}
+  button{
+    font-family:'IBM Plex Sans',sans-serif; font-size:13px; font-weight:500;
+    padding:8px 14px; border-radius:3px; cursor:pointer; border:1px solid var(--line);
+    background:var(--paper); color:var(--ink);
+  }
+  button.primary{background:var(--navy); color:var(--paper); border-color:var(--navy);}
+  button:active{opacity:.75;}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--forest);display:inline-block;
+    animation:blink 1.4s ease-in-out infinite; margin-right:6px;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .live-label{font-size:11.5px; color:var(--ink-soft); display:flex; align-items:center;}
+
+  .summary{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line);
+    border:1px solid var(--line); margin:24px 0 28px;}
+  .summary-cell{background:var(--paper); padding:16px 14px;}
+  .summary-num{font-family:'IBM Plex Serif',serif; font-size:26px; font-weight:600; color:var(--navy); line-height:1;}
+  .summary-label{font-size:11.5px; color:var(--ink-soft); margin-top:6px;}
+  .summary-num.urgent{color:var(--clay);}
+  .summary-num.high{color:var(--amber);}
+
+  .empty{border:1px dashed var(--line); border-radius:4px; padding:48px 24px; text-align:center; color:var(--ink-soft);}
+  .empty b{color:var(--ink); display:block; margin-bottom:6px; font-size:15px;}
+
+  .ticket{border:1px solid var(--line); border-radius:4px; margin-bottom:14px; overflow:hidden; background:var(--paper);}
+  .ticket-head{display:flex; justify-content:space-between; align-items:center; padding:12px 16px;
+    background:rgba(28,43,74,0.03); border-bottom:1px solid var(--line);}
+  .ticket-id{font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:500;}
+  .badges{display:flex; gap:6px;}
+  .badge{font-size:10.5px; font-weight:500; padding:3px 8px; border-radius:2px; text-transform:uppercase; letter-spacing:.02em;}
+  .badge.urgent{background:#FBE3DC; color:var(--clay);}
+  .badge.high{background:#F5E7D3; color:var(--amber);}
+  .badge.normal{background:#E4E8F0; color:var(--navy);}
+  .badge.queue{background:transparent; border:1px solid var(--line); color:var(--ink-soft);}
+
+  .ticket-body{padding:14px 16px; display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; font-size:13.5px;}
+  .field .k{font-size:11px; color:var(--ink-soft); margin-bottom:2px;}
+  .field .v{font-weight:500;}
+  .field.full{grid-column:1/-1;}
+  .field.action{grid-column:1/-1; background:rgba(28,43,74,0.04); padding:9px 11px; border-radius:3px; margin-top:2px;}
+  .transcript{grid-column:1/-1; margin-top:4px; font-size:12.5px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:10px;}
+  .transcript div{margin-bottom:3px;}
+
+  footer{margin-top:32px; font-size:12px; color:var(--ink-soft); text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Collections Escalation Queue</h1>
+      <p class="sub">What the operations team sees the instant the voice agent hands off a call</p>
+    </div>
+    <div class="actions">
+      <span class="live-label"><span class="live-dot"></span>auto-refreshing</span>
+      <button id="refreshBtn">Refresh</button>
+      <button id="resetBtn">Clear all</button>
+    </div>
+  </header>
+
+  <div class="summary" id="summary"></div>
+  <div id="ticketList"></div>
+
+  <footer>SecureFin Ops Console · demo data · <a href="/" style="color:var(--navy);">← back to call screen</a></footer>
+</div>
+
+<script>
+const listEl = document.getElementById('ticketList');
+const summaryEl = document.getElementById('summary');
+const PRIORITY_ORDER = {urgent:0, high:1, normal:2};
+
+async function load(){
+  let data;
+  try{
+    const r = await fetch('/api/crm/tickets');
+    data = await r.json();
+  }catch(e){
+    listEl.innerHTML = '<div class="empty"><b>Cannot reach the server</b>Is uvicorn still running?</div>';
+    return;
+  }
+  render(data.tickets || []);
+}
+
+function render(tickets){
+  const counts = {urgent:0, high:0, normal:0};
+  tickets.forEach(t => { if(counts[t.priority] !== undefined) counts[t.priority]++; });
+
+  summaryEl.innerHTML = `
+    <div class="summary-cell"><div class="summary-num">${tickets.length}</div><div class="summary-label">Total escalations</div></div>
+    <div class="summary-cell"><div class="summary-num urgent">${counts.urgent}</div><div class="summary-label">Urgent</div></div>
+    <div class="summary-cell"><div class="summary-num high">${counts.high}</div><div class="summary-label">High priority</div></div>
+    <div class="summary-cell"><div class="summary-num">${counts.normal}</div><div class="summary-label">Normal</div></div>
+  `;
+
+  if(tickets.length === 0){
+    listEl.innerHTML = `<div class="empty"><b>No escalations yet</b>Run a hardship, dispute, or refusal path on a call — a ticket will appear here automatically, in real time.</div>`;
+    return;
+  }
+
+  const sorted = [...tickets].sort((a,b) =>
+    (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9) ||
+    b.created_at.localeCompare(a.created_at)
+  );
+
+  listEl.innerHTML = sorted.map(t => `
+    <div class="ticket">
+      <div class="ticket-head">
+        <span class="ticket-id">${t.ticket_id}</span>
+        <div class="badges">
+          <span class="badge ${t.priority}">${t.priority}</span>
+          <span class="badge queue">${t.queue}</span>
+        </div>
+      </div>
+      <div class="ticket-body">
+        <div class="field"><div class="k">Borrower</div><div class="v">${t.borrower} · ${t.account}</div></div>
+        <div class="field"><div class="k">Intent</div><div class="v">${t.intent}</div></div>
+        <div class="field"><div class="k">Detail captured</div><div class="v">${t.extracted_detail}</div></div>
+        <div class="field"><div class="k">SLA</div><div class="v">${t.sla_hours}h · created ${new Date(t.created_at).toLocaleTimeString()}</div></div>
+        <div class="field action"><div class="k">Next action for the officer</div><div class="v">${t.next_action}</div></div>
+        ${t.transcript_excerpt && t.transcript_excerpt.length ? `
+        <div class="transcript">
+          ${t.transcript_excerpt.map(l => `<div>${l}</div>`).join('')}
+        </div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('refreshBtn').addEventListener('click', load);
+document.getElementById('resetBtn').addEventListener('click', async () => {
+  if(!confirm('Clear all tickets? This cannot be undone.')) return;
+  await fetch('/api/crm/reset', {method:'POST'});
+  load();
+});
+
+load();
+setInterval(load, 3000); // auto-refresh so tickets appear live while a call is running
+</script>
+</body>
+</html>

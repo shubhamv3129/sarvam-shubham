@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sarvam Sovereign Voice Agent — True Streaming Call</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Devanagari:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1C2B4A; --navy-deep:#131E33; --navy-mid:#233657;
+    --brass:#C68A3E; --paper:#F5F2EA; --ink:#22201B; --ink-soft:#8A93A8;
+    --forest:#4C9A6A; --clay:#D96C51; --line:rgba(245,242,234,0.12);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--navy-deep);font-family:'IBM Plex Sans',sans-serif;}
+  .devanagari{font-family:'IBM Plex Sans Devanagari','IBM Plex Sans',sans-serif;}
+  .app{display:grid; grid-template-columns:380px 1fr; height:100vh;}
+
+  .callscreen{
+    background:linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
+    color:var(--paper); display:flex; flex-direction:column; align-items:center;
+    padding:36px 24px; position:relative;
+  }
+  .call-status-label{font-size:12.5px; color:var(--brass); letter-spacing:0.04em; margin-bottom:6px;}
+  .call-timer{font-family:'IBM Plex Mono',monospace; font-size:15px; color:var(--ink-soft); margin-bottom:30px; min-height:20px;}
+
+  .avatar-wrap{position:relative; width:150px; height:150px; margin-bottom:22px;}
+  .avatar-ring{position:absolute; inset:0; border-radius:50%; border:1.5px solid rgba(198,138,62,0.4); opacity:0;}
+  .avatar-ring.pulse{animation:pulse-ring 1.6s ease-out infinite;}
+  @keyframes pulse-ring{0%{transform:scale(0.85); opacity:0.7;} 100%{transform:scale(1.35); opacity:0;}}
+  .avatar{
+    width:150px; height:150px; border-radius:50%; background:var(--navy-mid);
+    border:1.5px solid rgba(245,242,234,0.15); display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Serif',serif; font-size:44px; font-weight:600; color:var(--brass);
+    position:relative; z-index:2;
+  }
+  .avatar.listening{border-color:var(--forest);}
+  .avatar.speaking{border-color:var(--brass);}
+
+  .call-title{font-family:'IBM Plex Serif',serif; font-size:19px; font-weight:600; margin:0 0 4px;}
+  .call-sub{font-size:13px; color:var(--ink-soft); margin:0 0 20px; text-align:center;}
+
+  .live-caption{
+    min-height:36px; max-width:320px; text-align:center; font-size:14px; color:#C9D0DD;
+    margin-bottom:18px; font-style:italic; line-height:1.4;
+  }
+
+  .state-line{font-size:13.5px; color:var(--paper); margin-bottom:20px; display:flex; align-items:center; gap:8px; min-height:20px;}
+  .state-dot{width:7px; height:7px; border-radius:50%; background:var(--ink-soft);}
+  .state-dot.live{background:var(--forest); animation:blink 1s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+
+  .mini-waveform{display:flex; align-items:flex-end; gap:2.5px; height:22px; margin-bottom:20px;}
+  .mini-waveform span{width:3px; background:var(--forest); border-radius:1px; height:4px; transition:height .07s ease;}
+
+  .call-controls{margin-top:auto; width:100%; display:flex; flex-direction:column; gap:10px;}
+  button{
+    font-family:'IBM Plex Sans',sans-serif; font-size:14.5px; font-weight:500;
+    border-radius:3px; padding:13px 18px; border:1px solid transparent; cursor:pointer;
+    transition:opacity .15s ease;
+  }
+  button:disabled{opacity:0.4; cursor:default;}
+  button:active{opacity:0.75;}
+  .btn-start{background:var(--forest); color:#0D1A12;}
+  .btn-end{background:var(--clay); color:#2B0E08;}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border-color:rgba(245,242,234,0.2); font-size:12.5px;}
+
+  .mode-badge{
+    position:absolute; top:20px; right:20px; font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px; letter-spacing:0.03em; padding:4px 9px; border-radius:2px;
+    border:1px solid rgba(245,242,234,0.2); color:var(--ink-soft);
+  }
+  .mode-badge.live{color:var(--forest); border-color:rgba(76,154,106,0.4);}
+  .mode-badge.mock{color:var(--brass); border-color:rgba(198,138,62,0.4);}
+
+  .console{background:var(--paper); color:var(--ink); display:flex; flex-direction:column; height:100vh;}
+  .console-head{padding:22px 28px; border-bottom:1px solid rgba(28,43,74,0.12);}
+  .console-head h1{font-family:'IBM Plex Serif',serif; font-size:19px; font-weight:600; margin:0 0 4px;}
+  .console-head p{font-size:13px; color:#5B584F; margin:0;}
+  .console-body{flex:1; display:grid; grid-template-columns:1.1fr 0.9fr; overflow:hidden;}
+  .transcript-pane{padding:22px 28px; overflow-y:auto; border-right:1px solid rgba(28,43,74,0.1);}
+  .transcript-pane h2, .extraction-pane h2{
+    font-family:'IBM Plex Serif',serif; font-size:14.5px; font-weight:600; margin:0 0 16px;
+    text-transform:uppercase; letter-spacing:0.03em; color:#5B584F;
+  }
+  .bubble{max-width:82%; margin-bottom:14px; padding:11px 14px; border-radius:3px; font-size:14.5px; line-height:1.55;}
+  .bubble.agent{background:#E9E4D6; margin-right:auto;}
+  .bubble.borrower{background:var(--navy); color:var(--paper); margin-left:auto;}
+  .bubble .who{font-size:11px; opacity:0.6; margin-bottom:3px;}
+  .extraction-pane{padding:22px 28px; overflow-y:auto;}
+  .json-card{border:1px solid rgba(28,43,74,0.14); border-radius:3px; padding:14px 16px; margin-bottom:14px;}
+  .json-row{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(28,43,74,0.08); font-size:13px;}
+  .json-row:last-child{border-bottom:none;}
+  .json-row .k{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8A8470;}
+  .json-row .v{font-weight:500;}
+  .flag-badge{display:inline-block; padding:3px 9px; border-radius:2px; font-size:11.5px; font-weight:500; margin-top:6px;}
+  .flag-badge.review{background:#FBE3DC; color:#A8412F;}
+  .flag-badge.ok{background:#DEF0E3; color:#3C6E4F;}
+  .empty-note{color:#A19C8C; font-size:13.5px;}
+
+  .settings{
+    width:100%; border:1px solid var(--line); border-radius:3px;
+    margin-bottom:14px; overflow:hidden;
+  }
+  .settings summary{
+    list-style:none; cursor:pointer; padding:10px 12px; font-size:12.5px;
+    color:var(--ink-soft); background:rgba(245,242,234,0.04); user-select:none;
+  }
+  .settings summary::-webkit-details-marker{display:none;}
+  .settings summary:hover{color:var(--paper);}
+  .settings-body{padding:12px; display:flex; flex-direction:column; gap:14px;}
+  .ctl label{display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:5px;}
+  .ctl label b{color:var(--paper); font-weight:500; font-family:'IBM Plex Mono',monospace;}
+  .ctl input[type=range]{width:100%; accent-color:var(--brass); height:18px;}
+  .ctl select{
+    width:100%; background:var(--navy-deep); color:var(--paper); font-size:12.5px;
+    border:1px solid rgba(245,242,234,0.25); border-radius:2px; padding:7px 8px;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  .ctl-row{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--paper);}
+  .ctl-row input[type=checkbox]{accent-color:var(--forest); width:15px; height:15px;}
+  .tts-badge{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; padding:3px 7px;
+    border-radius:2px; align-self:flex-start;
+  }
+  .tts-badge.cached{color:var(--forest); border:1px solid rgba(76,154,106,0.45);}
+  .tts-badge.live{color:var(--brass); border:1px solid rgba(198,138,62,0.45);}
+  #echoWarning{
+    position:fixed; bottom:16px; left:16px; right:16px; max-width:480px;
+    background:#2B0E08; color:#F5F2EA; border:1px solid #D96C51; border-radius:4px;
+    padding:12px 16px; font-size:13px; z-index:99; display:none;
+  }
+
+  @media(max-width:900px){ .app{grid-template-columns:1fr;} .console-body{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="callscreen">
+    <span class="mode-badge" id="modeBadge">…</span>
+    <div class="call-status-label" id="statusLabel">NOT CONNECTED</div>
+    <div class="call-timer" id="callTimer">00:00</div>
+
+    <div class="avatar-wrap">
+      <div class="avatar-ring" id="ring1"></div>
+      <div class="avatar-ring" id="ring2" style="animation-delay:0.5s;"></div>
+      <div class="avatar" id="avatar">SF</div>
+    </div>
+
+    <div class="call-title">SecureFin Collections</div>
+    <div class="call-sub">True streaming · saaras:v3-realtime → Sarvam-30B → Bulbul streaming</div>
+    <div id="langBadge" style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--brass); margin-bottom:10px;">हिन्दी · Hindi</div>
+    <div class="live-caption devanagari" id="liveCaption"></div>
+
+    <div class="state-line"><span class="state-dot" id="stateDot"></span><span id="stateText">Ready to call</span></div>
+    <div class="mini-waveform" id="miniWave"></div>
+
+    <details class="settings">
+      <summary>⚙︎ Live controls — barge-in, voice, pace</summary>
+      <div class="settings-body">
+
+        <div class="ctl-row">
+          <input type="checkbox" id="bargeToggle" checked>
+          <label for="bargeToggle" style="margin:0;">Allow interruption (barge-in)</label>
+        </div>
+
+        <div class="ctl">
+          <label>Interrupt sensitivity — <b id="rmsVal">0.050</b><br>
+            <span style="opacity:.7">lower = easier to interrupt · raise if noise cuts it off</span></label>
+          <input type="range" id="rmsSlider" min="0.015" max="0.12" step="0.005" value="0.05">
+        </div>
+
+        <div class="ctl">
+          <label>Hold time before interrupting — <b id="framesVal">200 ms</b></label>
+          <input type="range" id="framesSlider" min="6" max="60" step="1" value="25">
+        </div>
+
+        <div class="ctl">
+          <label>Call language</label>
+          <select id="langSelect">
+            <option value="hi-IN">हिन्दी — Hindi</option>
+            <option value="mr-IN">मराठी — Marathi</option>
+          </select>
+        </div>
+
+        <div class="ctl-row">
+          <input type="checkbox" id="autoLangToggle" checked>
+          <label for="autoLangToggle" style="margin:0;">Auto-switch to the borrower's language</label>
+        </div>
+
+        <div class="ctl">
+          <label>Voice (Bulbul v3)</label>
+          <select id="voiceSelect">
+            <option value="rohan">rohan — male, neutral</option>
+            <option value="shubh">shubh — male, Bulbul default</option>
+            <option value="aditya">aditya — male</option>
+            <option value="rahul">rahul — male</option>
+            <option value="ritu">ritu — female</option>
+            <option value="priya">priya — female</option>
+            <option value="neha">neha — female</option>
+            <option value="ishita">ishita — female, conversational</option>
+            <option value="varun">varun — dramatic (not for collections)</option>
+          </select>
+        </div>
+
+        <div class="ctl">
+          <label>Speaking pace — <b id="paceVal">1.00×</b></label>
+          <input type="range" id="paceSlider" min="0.6" max="1.6" step="0.05" value="1.0">
+        </div>
+
+        <span class="tts-badge cached" id="ttsBadge">⚡ cached · instant</span>
+      </div>
+    </details>
+
+    <div class="call-controls">
+      <button class="btn-start" id="startBtn">📞 Start call</button>
+      <button class="btn-end" id="endBtn" style="display:none;">⏹ End call</button>
+      <button class="btn-ghost" id="resetBtn" style="display:none;">Reset</button>
+    </div>
+  </div>
+
+  <div class="console">
+    <div class="console-head">
+      <h1>Agent console</h1>
+      <p>What the collections officer sees while the AI handles the call</p>
+    </div>
+    <div class="console-body">
+      <div class="transcript-pane">
+        <h2>Live transcript</h2>
+        <div id="transcriptLog"><div class="empty-note">Conversation will appear here once the call connects.</div></div>
+      </div>
+      <div class="extraction-pane">
+        <h2>Structured extraction (latest turn)</h2>
+        <div id="extractionLog"><div class="empty-note">Awaiting first borrower turn…</div></div>
+        <h2 style="margin-top:24px;">Downstream actions (CRM)</h2>
+        <div id="crmLog"><div class="empty-note">No tickets yet — escalations appear here.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="echoWarning">🎧 <b>Use headphones.</b> Without them the agent's own voice can falsely trigger barge-in on itself.</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const startBtn=$('startBtn'), endBtn=$('endBtn'), resetBtn=$('resetBtn');
+const statusLabel=$('statusLabel'), stateText=$('stateText'), stateDot=$('stateDot');
+const avatar=$('avatar'), ring1=$('ring1'), ring2=$('ring2');
+const transcriptLog=$('transcriptLog'), extractionLog=$('extractionLog');
+const miniWave=$('miniWave'), modeBadge=$('modeBadge'), callTimerEl=$('callTimer');
+const liveCaption=$('liveCaption'), echoWarning=$('echoWarning');
+
+for(let i=0;i<18;i++){ const s=document.createElement('span'); miniWave.appendChild(s); }
+const waveBars = miniWave.querySelectorAll('span');
+
+let ws = null;
+let micStream = null, micCtx = null, micWorklet = null, micSource = null;
+let playCtx = null;
+let nextPlayTime = 0;
+let activeSources = []; // {source, gen}
+let currentAgentGen = null;
+
+let callActive = false;
+let timerInterval = null, callStartTime = null;
+
+// local instant barge-in detection (confirmed a beat later by server VAD)
+// ===================================================================
+//  BARGE-IN SENSITIVITY  —  tune these two if it interrupts too easily
+// ===================================================================
+// The mic delivers 128 samples per frame; at 16kHz that is 8ms per frame.
+// So BARGE_FRAMES x 8ms = how long a sound must be sustained before the
+// agent treats it as you interrupting.
+//
+//   Noisy room / it cuts in on its own  -> RAISE both
+//   It ignores you when you talk over it -> LOWER both
+//
+// Quick reference:
+//   RMS 0.03 = sensitive   0.05 = normal (default)   0.08 = noisy room
+//   FRAMES 12 (~100ms) = twitchy   25 (~200ms) = normal   45 (~360ms) = strict
+// These are now driven by the on-screen "Live controls" panel so they can be
+// changed mid-call without reloading. The values below are the defaults.
+let LOCAL_SPEECH_RMS   = 0.05;   // volume that counts as speech (0..1)
+let LOCAL_BARGE_FRAMES = 25;     // 25 x 8ms = 200ms of sustained sound
+let BARGE_IN_ENABLED   = true;   // panic switch: off = agent can't be interrupted
+let currentRms = 0;              // rolling mic level, used to sanity-check the
+                                 // server's VAD signal against what the mic
+                                 // actually hears right now
+// ===================================================================
+
+let localAboveCount = 0;
+
+let appState = 'idle'; // 'listening' | 'agent_speaking'
+
+startBtn.addEventListener('click', startCall);
+endBtn.addEventListener('click', endCall);
+resetBtn.addEventListener('click', ()=>location.reload());
+
+fetch('/api/status').then(r=>r.json()).then(j=>{
+  modeBadge.textContent = (j.mode||'?').toUpperCase();
+  modeBadge.classList.add(j.mode==='mock' ? 'mock' : 'live');
+  if(j.mode==='live' && !j.has_key){
+    setState('SARVAM_API_KEY not set on server', false);
+    startBtn.disabled = true;
+  }
+}).catch(()=>{ setState('Cannot reach backend', false); startBtn.disabled = true; });
+
+function setState(text, dotLive){ stateText.textContent = text; stateDot.classList.toggle('live', !!dotLive); }
+function setAvatarMode(mode){
+  avatar.classList.remove('listening','speaking');
+  ring1.classList.remove('pulse'); ring2.classList.remove('pulse');
+  if(mode){ avatar.classList.add(mode); ring1.classList.add('pulse'); ring2.classList.add('pulse'); }
+}
+function appendBubble(speaker, text){
+  if(transcriptLog.querySelector('.empty-note')) transcriptLog.innerHTML = '';
+  const el = document.createElement('div');
+  el.className = 'bubble ' + speaker;
+  el.innerHTML = `<div class="who">${speaker==='agent'?'AI Agent':'Borrower (you)'}</div><div class="devanagari">${text}</div>`;
+  transcriptLog.appendChild(el);
+  transcriptLog.scrollTop = transcriptLog.scrollHeight;
+}
+function renderExtraction(data){
+  extractionLog.innerHTML = `
+    <div class="json-card">
+      <div class="json-row"><span class="k">intent</span><span class="v">${data.intent}</span></div>
+      <div class="json-row"><span class="k">details</span><span class="v">${data.details||'—'}</span></div>
+      <div class="json-row"><span class="k">flow_state</span><span class="v">${data.state||'—'}</span></div>
+      ${data.requires_human_review
+        ? '<span class="flag-badge review">⚠ Requires human review</span>'
+        : '<span class="flag-badge ok">✅ Auto-resolved</span>'}
+    </div>`;
+}
+function startTimer(){
+  callStartTime = Date.now();
+  timerInterval = setInterval(()=>{
+    const s = Math.floor((Date.now()-callStartTime)/1000);
+    callTimerEl.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  }, 500);
+}
+
+// ================= CALL LIFECYCLE =================
+async function startCall(){
+  startBtn.disabled = true;
+  statusLabel.textContent = 'RINGING';
+  setState('Connecting…', false);
+
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1 }
+    });
+  }catch(e){
+    setState('Mic permission denied — allow mic access and retry.', false);
+    startBtn.disabled = false;
+    return;
+  }
+
+  echoWarning.style.display = 'block';
+  setTimeout(()=>{ echoWarning.style.display='none'; }, 7000);
+
+  micCtx = new (window.AudioContext||window.webkitAudioContext)({ sampleRate: 16000 });
+  playCtx = new (window.AudioContext||window.webkitAudioContext)({ sampleRate: 16000 });
+  nextPlayTime = playCtx.currentTime;
+
+  await setupMicWorklet();
+
+  await new Promise(r=>setTimeout(r, 1100)); // ringing beat
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/call`);
+  ws.onmessage = onServerMessage;
+  ws.onclose = ()=>{ if(callActive) setState('Connection closed', false); };
+  ws.onerror = ()=>{ setState('WebSocket error', false); };
+
+  await new Promise(resolve=>{ ws.onopen = resolve; });
+
+  callActive = true;
+  statusLabel.textContent = 'CONNECTED';
+  startBtn.style.display = 'none';
+  endBtn.style.display = 'block';
+  startTimer();
+  startMicSending();
+}
+
+async function endCall(){
+  callActive = false;
+  try{ ws && ws.send(JSON.stringify({type:'end_call'})); }catch(e){}
+  try{ ws && ws.close(); }catch(e){}
+  stopAllPlayback();
+  if(micWorklet) micWorklet.port.onmessage = null;
+  if(micSource) micSource.disconnect();
+  if(micCtx) micCtx.close();
+  if(playCtx) playCtx.close();
+  if(micStream) micStream.getTracks().forEach(t=>t.stop());
+  clearInterval(timerInterval);
+  setAvatarMode('');
+  statusLabel.textContent = 'CALL ENDED';
+  setState('Call ended', false);
+  endBtn.style.display = 'none';
+  resetBtn.style.display = 'block';
+  liveCaption.textContent = '';
+}
+
+// ================= MIC CAPTURE (AudioWorklet) =================
+async function setupMicWorklet(){
+  const workletCode = `
+    class PCMCapture extends AudioWorkletProcessor {
+      process(inputs){
+        const input = inputs[0];
+        if(input && input[0]){
+          this.port.postMessage(input[0].slice(0));
+        }
+        return true;
+      }
+    }
+    registerProcessor('pcm-capture', PCMCapture);
+  `;
+  const blob = new Blob([workletCode], {type:'application/javascript'});
+  const url = URL.createObjectURL(blob);
+  await micCtx.audioWorklet.addModule(url);
+
+  micSource = micCtx.createMediaStreamSource(micStream);
+  micWorklet = new AudioWorkletNode(micCtx, 'pcm-capture');
+  micSource.connect(micWorklet);
+  // not connected to destination — we don't want to hear our own mic
+}
+
+let micBuffer = [];
+let micBufferedSamples = 0;
+const SEND_CHUNK_SAMPLES = 1600; // ~100ms at 16kHz
+
+function startMicSending(){
+  micWorklet.port.onmessage = (e)=>{
+    const chunk = e.data; // Float32Array, ~128 samples
+    micBuffer.push(chunk);
+    micBufferedSamples += chunk.length;
+
+    // local RMS on this small chunk, for instant barge-in feel
+    let sum=0; for(let i=0;i<chunk.length;i++) sum += chunk[i]*chunk[i];
+    const rms = Math.sqrt(sum/chunk.length);
+    updateMiniWave(rms);
+    handleLocalVadForBargeIn(rms);
+
+    if(micBufferedSamples >= SEND_CHUNK_SAMPLES){
+      sendMicBuffer();
+    }
+  };
+}
+
+function sendMicBuffer(){
+  if(!callActive || !ws || ws.readyState !== WebSocket.OPEN) { micBuffer=[]; micBufferedSamples=0; return; }
+  const total = micBufferedSamples;
+  const merged = new Float32Array(total);
+  let offset = 0;
+  for(const c of micBuffer){ merged.set(c, offset); offset += c.length; }
+  micBuffer = []; micBufferedSamples = 0;
+
+  const pcm16 = new Int16Array(total);
+  for(let i=0;i<total;i++){
+    let s = Math.max(-1, Math.min(1, merged[i]));
+    pcm16[i] = s < 0 ? s*32768 : s*32767;
+  }
+  const bytes = new Uint8Array(pcm16.buffer);
+  let binary = '';
+  for(let i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
+  const b64 = btoa(binary);
+  ws.send(JSON.stringify({type:'mic_chunk', audio:b64}));
+}
+
+function updateMiniWave(rms){
+  if(appState !== 'listening') return;
+  const level = Math.min(1, rms*12);
+  waveBars.forEach((bar)=>{
+    const jitter = 0.5 + Math.random()*0.5;
+    bar.style.height = (4 + level*18*jitter) + 'px';
+  });
+}
+
+function handleLocalVadForBargeIn(rms){
+  currentRms = rms;
+  if(!BARGE_IN_ENABLED) return;
+  if(appState !== 'agent_speaking') { localAboveCount = 0; return; }
+  if(rms > LOCAL_SPEECH_RMS){
+    localAboveCount++;
+    if(localAboveCount >= LOCAL_BARGE_FRAMES){
+      localAboveCount = 0;
+      triggerLocalBargeIn();
+    }
+  } else {
+    localAboveCount = 0;
+  }
+}
+
+function triggerLocalBargeIn(){
+  stopAllPlayback();
+  enterListening(true);
+  try{ ws.send(JSON.stringify({type:'client_barge_in'})); }catch(e){}
+}
+
+// ================= PLAYBACK (streamed PCM) =================
+function stopAllPlayback(){
+  activeSources.forEach(({source})=>{ try{ source.stop(0); }catch(e){} });
+  activeSources = [];
+  nextPlayTime = playCtx ? playCtx.currentTime : 0;
+}
+
+function playAudioChunkB64(b64, gen){
+  if(gen !== currentAgentGen) return; // stale chunk from an interrupted reply
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  const pcm16 = new Int16Array(bytes.buffer);
+  const float32 = new Float32Array(pcm16.length);
+  for(let i=0;i<pcm16.length;i++) float32[i] = pcm16[i] / 32768;
+
+  const buffer = playCtx.createBuffer(1, float32.length, 16000);
+  buffer.copyToChannel(float32, 0);
+
+  const source = playCtx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(playCtx.destination);
+
+  const startAt = Math.max(nextPlayTime, playCtx.currentTime);
+  source.start(startAt);
+  nextPlayTime = startAt + buffer.duration;
+
+  activeSources.push({source, gen});
+  source.onended = ()=>{ activeSources = activeSources.filter(s=>s.source!==source); };
+}
+
+// ================= STATE TRANSITIONS =================
+function enterListening(interrupted){
+  appState = 'listening';
+  currentAgentGen = null;
+  setAvatarMode('listening');
+  statusLabel.textContent = interrupted ? 'LISTENING (interrupted)' : 'LISTENING';
+  setState(interrupted ? '⚡ Interrupted — listening…' : 'Listening…', true);
+}
+function enterAgentSpeaking(gen){
+  appState = 'agent_speaking';
+  currentAgentGen = gen;
+  nextPlayTime = playCtx.currentTime;
+  setAvatarMode('speaking');
+  statusLabel.textContent = 'AGENT SPEAKING';
+  setState('Agent speaking… (talk anytime to interrupt)', true);
+}
+
+// ================= SERVER MESSAGES =================
+function onServerMessage(evt){
+  const msg = JSON.parse(evt.data);
+  switch(msg.type){
+    case 'session_ready':
+      break;
+    case 'greeting_text':
+      appendBubble('agent', msg.text);
+      enterAgentSpeaking(null); // gen assigned on first chunk below via server 'gen' field
+      break;
+    case 'vad_speech_start':
+      // Second, INDEPENDENT interrupt path: Sarvam's own server-side VAD.
+      // Raising the client thresholds above does nothing on its own — this
+      // one has to respect the same switch, or it still cuts the agent off.
+      // Gate the server's VAD on what our own mic hears RIGHT NOW, so the
+      // sensitivity slider governs BOTH interrupt paths. Without this, raising
+      // the slider looks like it does nothing because the server path still fires.
+      if(BARGE_IN_ENABLED && appState === 'agent_speaking' && currentRms > LOCAL_SPEECH_RMS){
+        stopAllPlayback(); enterListening(true);
+      }
+      liveCaption.textContent = '';
+      break;
+    case 'vad_speech_end':
+      break;
+    case 'partial_transcript':
+      liveCaption.textContent = msg.text;
+      break;
+    case 'final_transcript':
+      liveCaption.textContent = '';
+      appendBubble('borrower', msg.text);
+      statusLabel.textContent = 'THINKING';
+      setState('Thinking…', false);
+      setAvatarMode('');
+      break;
+    case 'agent_text_done':
+      renderExtraction(msg);
+      appendBubble('agent', msg.full_text);
+      break;
+    case 'agent_audio_chunk':
+      if(currentAgentGen === null || currentAgentGen !== msg.gen){
+        currentAgentGen = msg.gen;
+        enterAgentSpeaking(msg.gen);
+      }
+      playAudioChunkB64(msg.audio, msg.gen);
+      break;
+    case 'agent_audio_done':
+      if(msg.gen === currentAgentGen){
+        // wait for scheduled audio to actually finish, then go back to listening
+        const checkDone = ()=>{
+          if(activeSources.filter(s=>s.gen===msg.gen).length === 0){
+            if(appState === 'agent_speaking') enterListening(false);
+          } else {
+            setTimeout(checkDone, 150);
+          }
+        };
+        checkDone();
+      }
+      break;
+    case 'language_changed':
+      langBadge.textContent = (LANG_LABELS[msg.lang]||msg.lang) + (msg.auto ? ' · auto-detected' : '');
+      langSelect.value = msg.lang;
+      break;
+    case 'crm_ticket':
+      renderTicket(msg.ticket);
+      break;
+    case 'error':
+      console.error('Server error:', msg.message);
+      setState('Error: ' + msg.message, false);
+      // Previously the call froze on "THINKING" forever after any backend
+      // error — this line was missing entirely. Reset the big status label
+      // and resume listening so one failed turn doesn't end the call.
+      if (appState !== 'listening') {
+        enterListening(false);
+      }
+      break;
+  }
+}
+
+// ================= LIVE CONTROLS =================
+const bargeToggle=$('bargeToggle'), rmsSlider=$('rmsSlider'), framesSlider=$('framesSlider');
+const voiceSelect=$('voiceSelect'), paceSlider=$('paceSlider');
+const rmsVal=$('rmsVal'), framesVal=$('framesVal'), paceVal=$('paceVal'), ttsBadge=$('ttsBadge');
+
+const DEFAULT_VOICE = 'rohan';   // must match SARVAM_TTS_SPEAKER used at prewarm
+const DEFAULT_PACE  = 1.0;
+
+// Client-side: instant, no round trip, safe to change mid-sentence.
+bargeToggle.addEventListener('change', e => { BARGE_IN_ENABLED = e.target.checked; });
+rmsSlider.addEventListener('input', e => {
+  LOCAL_SPEECH_RMS = parseFloat(e.target.value);
+  rmsVal.textContent = LOCAL_SPEECH_RMS.toFixed(3);
+});
+framesSlider.addEventListener('input', e => {
+  LOCAL_BARGE_FRAMES = parseInt(e.target.value, 10);
+  framesVal.textContent = (LOCAL_BARGE_FRAMES * 8) + ' ms';  // 128 samples @16kHz = 8ms/frame
+});
+
+// Server-side: applies to the NEXT reply.
+function pushTtsConfig(){
+  const voice = voiceSelect.value;
+  const pace  = parseFloat(paceSlider.value);
+  const isDefault = (voice === DEFAULT_VOICE && Math.abs(pace - DEFAULT_PACE) < 0.001);
+  // Only the prewarmed voice/pace combination can be served from cache. Anything
+  // else has to be synthesised live, which is slower — surface that honestly
+  // rather than letting the demo mysteriously get sluggish.
+  ttsBadge.className = 'tts-badge ' + (isDefault ? 'cached' : 'live');
+  ttsBadge.textContent = isDefault ? '⚡ cached · instant' : '🔄 live synthesis · slower';
+  if(ws && ws.readyState === WebSocket.OPEN){
+    ws.send(JSON.stringify({type:'update_tts_config', speaker:voice, pace:pace}));
+  }
+}
+voiceSelect.addEventListener('change', pushTtsConfig);
+paceSlider.addEventListener('input', e => {
+  paceVal.textContent = parseFloat(e.target.value).toFixed(2) + '\u00d7';
+  pushTtsConfig();
+});
+
+// ================= LANGUAGE + CRM =================
+const langSelect=$('langSelect'), autoLangToggle=$('autoLangToggle');
+const langBadge=$('langBadge'), crmLog=$('crmLog');
+const LANG_LABELS={'hi-IN':'हिन्दी · Hindi','mr-IN':'मराठी · Marathi'};
+
+langSelect.addEventListener('change', e=>{
+  if(ws && ws.readyState===WebSocket.OPEN)
+    ws.send(JSON.stringify({type:'set_language', lang:e.target.value}));
+  langBadge.textContent = LANG_LABELS[e.target.value] || e.target.value;
+});
+autoLangToggle.addEventListener('change', e=>{
+  if(ws && ws.readyState===WebSocket.OPEN)
+    ws.send(JSON.stringify({type:'set_auto_switch', enabled:e.target.checked}));
+});
+
+function renderTicket(t){
+  if(crmLog.querySelector('.empty-note')) crmLog.innerHTML='';
+  const el=document.createElement('div');
+  el.className='json-card';
+  el.style.borderLeft='3px solid var(--clay)';
+  el.innerHTML=`
+    <div class="json-row"><span class="k">ticket</span><span class="v">${t.ticket_id}</span></div>
+    <div class="json-row"><span class="k">queue</span><span class="v">${t.queue}</span></div>
+    <div class="json-row"><span class="k">priority</span><span class="v">${t.priority}</span></div>
+    <div class="json-row"><span class="k">sla</span><span class="v">${t.sla_hours}h</span></div>
+    <div class="json-row"><span class="k">next_action</span><span class="v" style="text-align:right;max-width:60%">${t.next_action}</span></div>`;
+  crmLog.appendChild(el);
+}
+</script>
+</body>
+</html>
