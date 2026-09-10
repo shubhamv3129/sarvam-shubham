@@ -10,6 +10,12 @@ Speaks **Hindi and Marathi**, handles **Hinglish code-mixing**, supports
 through a real downstream tool call.
 ## Quick start
 
+## 📂 Architecture & Collateral
+- 🏗️ **System Architecture:** [`docs/architecture/Sarvam Architecture Diagram.pdf`](docs/architecture/Sarvam%20Architecture%20Diagram.pdf)
+- 🔀 **Decision State Machine Flowchart:** [`docs/architecture/Sarvam Flowchart.pdf`](docs/architecture/Sarvam%20Flowchart.pdf)
+- 💼 **Business & Executive Strategy Writeup:** [`docs/business/Business Writeup - Sarvam.pdf`](docs/business/Business%20Writeup%20-%20Sarvam.pdf)
+
+
 ```bash
 cd src
 python -m venv venv
