@@ -107,37 +107,6 @@ the call screen and raise *Interrupt sensitivity*. No restart needed. If the
 room is very loud, untick *Allow interruption* entirely.
 
 ---
-
-## Architecture
-
-![Architecture diagram](docs/architecture-diagram.png)
-
-Text version, if the image doesn't render in your viewer:
-
-```
-Browser  ──AudioWorklet mic, 16kHz PCM16──┐
-                                          │  one WebSocket, both directions
-                                          ▼
-                            FastAPI  (backend_stream.py)
-                                          │
-        ┌─────────────────────────────────┼─────────────────────────────┐
-        ▼                                 ▼                             ▼
-  Saaras v3 realtime STT          Sarvam-105B LLM                Bulbul v3 TTS
-  (WebSocket, server VAD,         (classification only,          (streaming;
-   auto language, codemix)         strict JSON schema)            pre-cached)
-        │                                 │                             │
-        │                                 ▼                             │
-        │                    scripts.py — state machine                 │
-        │                    (FLOW + approved Hindi/Marathi lines)      │
-        │                                 │                             │
-        │                                 ▼                             │
-        │                    crm.py — TOOL CALL on escalation           │
-        │                    → ticket written → ops webhook fired       │
-        ▼                                 ▼                             ▼
-   Live transcript            Intent + slot + flow state          Agent audio
-                         ── all streamed back to the browser ──
-```
-
 **The LLM never writes what the borrower hears.** It classifies intent and
 extracts one slot value against a strict JSON schema. Every spoken word comes
 from a pre-approved script in `scripts.py`. This is a compliance requirement for
